@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Stick Ball</title>
+        <style>
+            body{padding: 0; margin: 0;overflow: hidden;}
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>  
+        <script type="text/javascript">
+            
+        //================ Canvas Animasyonu  =============================================//
+        window.animasyonFrameIstegi = (function(){ //degisken ismi
+            return window.requestAnimationFrame ||
+                   window.webkitRequestAnimationFrame ||
+                   window.mozRequestAnimationFrame ||
+                   window.oRequestAnimationFrame ||
+                   window.msRequestAnimationFrame ||                  
+            function(callback){ //degisken
+                return window.setTimeout(callback, 1000/60);
+                };
+        })();      
+        window.animasyonFrameIptal = (function(){
+            return window.cancelAnimationFrame ||
+                   window.webkitCancelRequestAnimationFrame ||
+                   window.mozCancelRequestAnimationFrame ||
+                   window.oCancelRequestAnimationFrame ||
+                   window.msCancelRequestAnimationFrame ||
+                   clearTimeout;
+        })();   
+     
+        //================ Değişken Tanımlamaları =====================================================================//
+        var canvas = document.getElementById("canvas"),
+        ctx = canvas.getContext("2d"),
+        genislik = window.innerWidth, 
+        yukseklik = window.innerHeight, 
+        mouse = {},
+        parcalar = [], 
+        topnesnesi = {},
+        cubuk = [2],
+        puanlar = 0, 
+        hiz = 60, 
+        baslatButonu = {}, 
+        resetButonu = {}, 
+        bitti = 0,
+        res, 
+        cubukCarpisma;
+              
+        //================ Canvasın Tam Ekran olmasını sağlayan Alan  ====================================================//
+        canvas.width = genislik;
+        canvas.height = yukseklik;       
+        
+        canvas.addEventListener("mousemove", mouseHareket, true);
+        canvas.addEventListener("mousedown", butonTiklandi, true);       
+
+        //================ Top Nesnesi ===================================================================================//     
+        topnesnesi = {
+            x : 50,
+            y : 50,
+            r : 5,
+            c : "white",
+            xh : 4,
+            yh : 8,            
+            ciz : function(){
+                ctx.beginPath();
+                ctx.fillStyle = this.c;
+                ctx.arc(this.x, this.y, this.r, 0, Math.PI*2, false);
+                ctx.fill();            
+            }
+        };
+        
+        //================ Başlat Butonu =============================================================================//   
+        baslatButonu = {
+            w : 200,
+            h : 50,
+            x : genislik/2 - 100,
+            y : yukseklik/2 - 25,            
+            ciz: function(){
+                ctx.strokeStyle = "green";
+                ctx.lineWidth = "2";
+                ctx.strokeRect(this.x, this.y, this.w, this.h);
+                ctx.font = "25px Arial, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "white";
+                ctx.fillText("Oyuna Başla", genislik/2, yukseklik/2);
+            }
+        };       
+        
+        //================ Reset Butonu ===============================================================================//  
+        resetButonu = {
+            w : 200,
+            h : 50,
+            x : genislik/2 - 100,
+            y : yukseklik/2 - 25,    
+            ciz: function(){
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = "2";
+                ctx.strokeRect(this.x, this.y, this.w, this.h);
+                ctx.font = "25px Arial, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "white";
+                ctx.fillText("Tekrar Dene!", genislik/2, yukseklik/2);
+            }
+        };
+        
+        //================ Hızını Artırma ================================================================================//       
+        function hizArttir(){
+            if(puanlar % 4 == 0){
+                if(Math.abs(topnesnesi.xh) < 15){
+                    topnesnesi.xh += (topnesnesi.xh<0) ? - 1 : 1;
+                    topnesnesi.xy += (topnesnesi.xy < 0) ? - 2 : 2;
+                }
+            }
+        }           
+        
+        //================ Çubuk için Fonksiyon =======================================================================// 
+        function kurek(pozisyon){
+            this.h = 5;
+            this.w = 150;           
+            // Kurek Pozisyonu // 
+            this.x = genislik/2 - this.w/2;
+            this.y = (pozisyon == "ust") ? 0 : yukseklik - this.h;
+            // #Kurek Pozisyonu // 
+        }
+
+        // Çubuk Arrayine Kurek Eklendi //
+        cubuk.push(new kurek("asagi"));
+        cubuk.push(new kurek("ust"));  
+                
+        //================ Tuval Çizmek için Gerekli Fonksiyon ========================================================// 
+        function canvasCiz(){
+            ctx.fillStyle = "black";
+            ctx.fillRect(0,0, genislik, yukseklik);                
+        }     
+        
+        //================ Çizim İçin Gerekli Fonksiyon ===============================================================// 
+        function ciz(){
+            canvasCiz();
+            for (var i = 0; i < cubuk.length; i++){
+                parcalar = cubuk[i];
+                ctx.fillStyle = "white";
+                ctx.fillRect(parcalar.x, parcalar.y, parcalar.w, parcalar.h);
+            }
+            topnesnesi.ciz();
+            guncelle();
+        }
+        
+        //================ Animasyonları Oynatmak İçin Gerekli Döngü ==============================================// 
+        function animaDongu(){
+            res = animasyonFrameIstegi(animaDongu);
+            ciz();
+        }     
+        function baslamaEkrani(){
+            ciz();
+            baslatButonu.ciz();
+        }
+           
+        //================ Ekrandaki Değişiklikleri Gösteren Güncelle fonksiyonu ====================================//
+        function guncelle(){           
+            skorGuncelle();
+            // Topun Hareketi //
+            topnesnesi.x += topnesnesi.xh;
+            topnesnesi.y += topnesnesi.yh;
+            // #Topun Hareketi //  
+                      
+            // ÇubuğunHareketi //
+            if(mouse.x && mouse.y){
+                for(var i =1; i<cubuk.length; i++){
+                    p = cubuk[i];
+                    p.x = mouse.x - p.w/2;
+                }
+            }                     
+                  
+            p1 = cubuk[1];
+            p2 = cubuk[2];
+            
+            // Çarpışma İşleminin Gerçekleştiği yer
+            if(carpismalar(topnesnesi, p1)){
+                carpismaEylemi(topnesnesi, p1);        
+            }
+            else if(carpismalar(topnesnesi, p2)){
+                carpismaEylemi(topnesnesi, p2);  
+            }
+            else{
+                if(topnesnesi.y + topnesnesi.r > yukseklik){
+                    topnesnesi.y = yukseklik - topnesnesi.r;
+                    oyunBitti();
+                }
+                else if(topnesnesi.y < 0){
+                    topnesnesi.y = topnesnesi.r;
+                    oyunBitti();
+                }       
+
+                if(topnesnesi.x + topnesnesi.r > genislik){
+                   topnesnesi.xh = -topnesnesi.xh;
+                   topnesnesi.x = genislik -topnesnesi.r;
+                }
+                else if(topnesnesi.x - topnesnesi.r < 0){
+                   topnesnesi.xh = -topnesnesi.xh;
+                   topnesnesi.x = topnesnesi.r;
+                }       
+           }
+        }
+ 
+             
+        //================ Fareyi Hareket Ettirir ==================================================================//   
+        function mouseHareket(e){
+            mouse.x = e.pageX;
+            mouse.y = e.pageY;
+        }
+                
+        //================ Top ile Çubuk Arasındaki Çarpışmayı Kontrol Eden Fonksiyon ==============================// 
+        function carpismalar(b, p){ 
+            if(b.x + topnesnesi.r >= p.x && b.x - topnesnesi.r <= p.x + p.w){
+                if(b.y >= (p.y - p.h) && p.y > 0){
+                    cubukCarpisma = 1;
+                    return true;
+                }
+                else if(b.y <= (p.y - p.h) && p.y == 0){
+                    cubukCarpisma = 2;
+                    return true;
+                }
+                else{
+                    return false;
+                }
+            }
+        }
+                
+        //================ Çarpışma Eyleminin Gerçekleştiği An ======================================================// 
+        function carpismaEylemi (topnesnesi, p){
+            topnesnesi.yh = - topnesnesi.yh;  
+            if(cubukCarpisma == 1){
+                 topnesnesi.y =p.y - p.h;
+                 cogalt = -1;                 
+            }else if(cubukCarpisma == 2){
+                 topnesnesi.y = p.y + topnesnesi.r;
+                 cogalt = 1;
+            }
+            puanlar++;
+            hizArttir();
+        }
+              
+        //================ Puan Tablosu ============================================================================// 
+        function skorGuncelle(){
+            ctx.fillStyle = "yellow";
+            ctx.font= "20px Arial, sans-serif";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillText("PUAN : "+ puanlar, 20,20);
+        }     
+        
+        //================ Oyun Bitiren Fonksiyon ==================================================================// 
+        function oyunBitti(){
+            ctx.fillStyle = "red";
+            ctx.font = "50px Arial, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("Oyun Bitti! Toplam " + puanlar + " Puan Aldın.", genislik/2, yukseklik/2 + 75);           
+            animasyonFrameIptal(res);           
+            bitti = 1;      
+            resetButonu.ciz();
+        }
+        
+        //================ Buton Tıklandığında Basla veya Resetle ==================================================// 
+        function butonTiklandi(e){          
+            // Mouse Pozisyonunun Saklanması //
+            var mx = e.pageX,
+                my = e.pageY;
+             
+            // Başlat Butonu //
+            if(mx >= baslatButonu.x && mx <= baslatButonu.x + baslatButonu.w){
+                animaDongu();           
+                // Başlat Butonunu Ekrandan Sil //
+                baslatButonu = {};           
+            }
+             if(bitti == 1){
+                 if(mx >= resetButonu.x && mx <= resetButonu.x + resetButonu.w){
+                     topnesnesi.x = 20;
+                     topnesnesi.y = 20;
+                     puanlar = 0;
+                     topnesnesi.xh = 4;
+                     topnesnesi.yh = 8;
+                     animaDongu();              
+                     bitti = 0;
+                }
+            } 
+        }
+        baslamaEkrani();       
+        </script>
+    </body>
+</html>
